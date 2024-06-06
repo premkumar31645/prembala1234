@@ -1,0 +1,43 @@
+import pandas as pd
+from surprise import Dataset, Reader, SVD
+from surprise.model_selection import train_test_split
+from surprise.accuracy import rmse
+
+data = pd.read_csv("music_data.csv")
+
+reader = Reader(rating_scale=(1, 5))
+dataset = Dataset.load_from_df(data[['user_id', 'track_id', 'rating']], reader)
+
+
+trainset, testset = train_test_split(dataset, test_size=0.2, random_state=42)
+
+
+model = SVD()
+model.fit(trainset)
+
+
+predictions = model.test(testset)
+
+
+accuracy = rmse(predictions)
+print("RMSE:", accuracy)
+
+user_id = 123  # Sample user ID
+# Get a list of items (tracks) that the user hasn't rated yet
+rated_tracks = data[data['user_id'] == user_id]['track_id']
+unrated_tracks = data[~data['track_id'].isin(rated_tracks)]['track_id']
+
+
+recommendations = []
+for track_id in unrated_tracks:
+    predicted_rating = model.predict(user_id, track_id).est
+    recommendations.append((track_id, predicted_rating))
+
+
+recommendations.sort(key=lambda x: x[1], reverse=True)
+
+
+top_n = 10
+print(f"Top {top_n} Recommendations for User {user_id}:")
+for i, (track_id, predicted_rating) in enumerate(recommendations[:top_n], 1):
+    print(f"{i}. Track ID: {track_id}, Predicted Rating: {predicted_rating}")
